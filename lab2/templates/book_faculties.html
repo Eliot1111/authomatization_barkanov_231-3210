@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-3">Факультеты, использующие "{{ title }}" в филиале {{ branch }}</h2>
+<p>Количество факультетов: <span class="badge text-bg-primary">{{ count }}</span></p>
+<ul class="list-group">
+  {% for n in names %}
+    <li class="list-group-item">{{ n }}</li>
+  {% else %}
+    <li class="list-group-item">Нет подключённых факультетов</li>
+  {% endfor %}
+</ul>
+{% endblock %}

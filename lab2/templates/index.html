@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1 class="mb-4">Добро пожаловать!</h1>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Проверка экземпляров в филиале</h5>
+          <form action="" method="get" onsubmit="event.preventDefault(); location.href='/branches/'+branch.value+'/books/'+book.value+'/copies'">
+            <div class="mb-2">
+              <label class="form-label">Книга</label>
+              <select class="form-select" id="book">
+                {% for b in books %}<option value="{{ b.id }}">{{ b.title }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Филиал</label>
+              <select class="form-select" id="branch">
+                {% for br in branches %}<option value="{{ br.id }}">{{ br.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <button class="btn btn-primary">Посчитать</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Факультеты использования книги</h5>
+          <form action="" method="get" onsubmit="event.preventDefault(); location.href='/branches/'+branch2.value+'/books/'+book2.value+'/faculties'">
+            <div class="mb-2">
+              <label class="form-label">Книга</label>
+              <select class="form-select" id="book2">
+                {% for b in books %}<option value="{{ b.id }}">{{ b.title }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Филиал</label>
+              <select class="form-select" id="branch2">
+                {% for br in branches %}<option value="{{ br.id }}">{{ br.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <button class="btn btn-primary">Показать</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

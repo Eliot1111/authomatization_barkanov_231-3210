@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-3">Выдача книг студентам</h2>
+<form method="post" class="row g-3 mb-4">
+  <div class="col-md-3">
+    <label class="form-label">Студент</label>
+    <select name="student_id" class="form-select">
+      {% for s in students %}<option value="{{ s.id }}">{{ s.full_name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-5">
+    <label class="form-label">Книга</label>
+    <select name="book_id" class="form-select">
+      {% for b in books %}<option value="{{ b.id }}">{{ b.title }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Филиал</label>
+    <select name="branch_id" class="form-select">
+      {% for br in branches %}<option value="{{ br.id }}">{{ br.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-1 d-flex align-items-end">
+    <button class="btn btn-primary w-100">Выдать</button>
+  </div>
+</form>
+
+<h3 class="mt-4">История выдач</h3>
+<table class="table table-sm table-hover">
+  <thead>
+    <tr><th>#</th><th>Студент</th><th>Книга</th><th>Филиал</th><th>Выдана</th><th>Возврат</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for bo in borrows %}
+    <tr>
+      <td>{{ bo.id }}</td>
+      <td>{{ bo.student }}</td>
+      <td>{{ bo.book }}</td>
+      <td>{{ bo.branch }}</td>
+      <td>{{ bo.borrowed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ bo.returned_at and bo.returned_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td>
+      <td>
+        {% if not bo.returned_at %}
+        <form method="post" action="{{ url_for('do_return', borrow_id=bo.id) }}">
+          <button class="btn btn-sm btn-outline-success">Принять возврат</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

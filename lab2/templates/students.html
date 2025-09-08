@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-3">Студенты</h2>
+<table class="table table-striped">
+  <thead><tr><th>ФИО</th><th>Факультет</th></tr></thead>
+  <tbody>
+    {% for s in students %}
+      <tr><td>{{ s.full_name }}</td><td>{{ s.faculty }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

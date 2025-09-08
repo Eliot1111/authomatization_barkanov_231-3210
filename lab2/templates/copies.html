@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-3">"{{ title }}" — филиал: {{ branch }}</h2>
+<ul class="list-group">
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    Всего экземпляров
+    <span class="badge text-bg-secondary rounded-pill">{{ total }}</span>
+  </li>
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    Доступно к выдаче
+    <span class="badge text-bg-success rounded-pill">{{ available }}</span>
+  </li>
+</ul>
+{% endblock %}
