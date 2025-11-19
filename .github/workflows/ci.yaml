@@ -1,0 +1,155 @@
+name: Pulling docker-app image and db in docker
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Checkouting
+        uses: actions/checkout@v4.3.1
+
+      - name: Create .env file from secrets
+        run: |
+          cd lab2
+          # Создаем .env файл из секретов GitHub Actions
+          # Если DATABASE_URL задан полностью, используем его
+          # Иначе собираем из отдельных компонентов
+          if [ -n "${{ secrets.DATABASE_URL }}" ]; then
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
+          else
+            # Собираем DATABASE_URL из отдельных секретов
+            POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
+            POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
+            POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
+            POSTGRES_HOST="${{ secrets.POSTGRES_HOST }}"
+            
+            echo "DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}" > .env
+          fi
+          
+          # Добавляем FLASK_SECRET
+          echo "FLASK_SECRET=${{ secrets.FLASK_SECRET }}" >> .env
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Create virtual environment
+        run: |
+          cd lab2
+          python -m venv venv || python3 -m venv venv
+          echo "Virtual environment created in lab2/"
+
+      - name: Activate virtual environment and upgrade pip
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          python -m pip install --upgrade pip
+
+      - name: Install dependencies
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Install pre-commit hooks
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          pre-commit install || echo "Pre-commit install skipped"
+          pre-commit --version || echo "Pre-commit not found"
+
+      - name: Run pre-commit
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          pre-commit run --all-files --verbose || true
+
+      - name: Run Flake8 (PEP8)
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics || true
+
+      - name: Run Pylint
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          pylint app.py models.py db_bootstrap.py --fail-under=7.0 || true
+
+      - name: Run Bandit (Security)
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          bandit -r . -f json -o bandit-report.json || true
+          bandit -r . -ll || true
+
+      - name: Run Safety (Dependencies Security)
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          safety check --json || true
+          safety check || true
+
+      - name: Run MyPy (Type Checking)
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          mypy . --ignore-missing-imports || true
+
+      - name: Stop existing containers (if any)
+        run: |
+          cd lab2
+          docker-compose down || docker compose down || true
+          echo "Existing containers stopped"
+      
+      - name: Build and start Docker containers
+        run: |
+          cd lab2
+          # Собираем и запускаем контейнеры в фоновом режиме
+          docker-compose up -d --build
+          
+
+      - name: Wait for database to be ready
+        run: |
+          cd lab2
+          echo "Waiting for PostgreSQL to be ready..."
+          max_attempts=30
+          attempt=0
+          
+          while [ $attempt -lt $max_attempts ]; do
+            if docker exec postgres pg_isready -U postgres > /dev/null 2>&1; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts: Waiting for PostgreSQL..."
+            sleep 2
+          done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "ERROR: PostgreSQL did not become ready in time"
+            docker logs postgres
+            exit 1
+          fi
+
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-security-report
+          path: lab2/bandit-report.json
+          if-no-files-found: ignore
