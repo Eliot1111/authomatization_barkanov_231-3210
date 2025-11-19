@@ -1,0 +1,41 @@
+[MASTER]
+ignore-patterns=test_.*\.py
+disable=
+    C0103,
+    C0111,
+    R0903,
+    R0913,
+    W0212,
+    C0114,
+    C0115,
+    C0116
+
+[MESSAGES CONTROL]
+disable=
+    missing-docstring,
+    too-few-public-methods,
+    too-many-arguments,
+    protected-access,
+    no-member,
+    import-error
+
+[FORMAT]
+max-line-length=127
+indent-string='    '
+
+[BASIC]
+good-names=i,j,k,ex,Run,_,id,db,session,app,engine
+
+[DESIGN]
+max-args=10
+max-locals=20
+max-returns=10
+max-branches=15
+max-statements=50
+max-parents=10
+max-attributes=15
+min-public-methods=0
+
+[IMPORTS]
+ignore-imports=yes
+
