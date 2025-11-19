@@ -146,6 +146,109 @@ jobs:
             exit 1
           fi
 
+      - name: Check application container status
+        run: |
+          cd lab2
+          echo "Checking application container status..."
+          
+          # Проверяем статус контейнера
+          if command -v docker-compose &> /dev/null; then
+            COMPOSE_CMD="docker-compose"
+          else
+            COMPOSE_CMD="docker compose"
+          fi
+          
+          # Проверяем, что контейнер запущен
+          CONTAINER_STATUS=$(docker ps -a --filter "name=application" --format "{{.Status}}")
+          echo "Container status: $CONTAINER_STATUS"
+          
+          if ! docker ps --filter "name=application" --format "{{.Names}}" | grep -q "application"; then
+            echo "ERROR: Application container is not running!"
+            echo "Container logs:"
+            docker logs application || echo "Cannot get logs"
+            echo "Docker compose logs:"
+            $COMPOSE_CMD logs myapp || echo "Cannot get compose logs"
+            exit 1
+          fi
+          
+          # Проверяем, что процесс Python запущен в контейнере
+          if docker exec application ps aux | grep -q "[p]ython.*app.py"; then
+            echo "✓ Python process is running in container"
+          else
+            echo "✗ ERROR: Python process is NOT running in container!"
+            echo "Processes in container:"
+            docker exec application ps aux || echo "Cannot check processes"
+            echo "Container logs:"
+            docker logs application --tail 50
+            exit 1
+          fi
+          
+          # Проверяем, что порт слушается
+          if docker exec application netstat -tuln 2>/dev/null | grep -q ":7009" || \
+             docker exec application ss -tuln 2>/dev/null | grep -q ":7009"; then
+            echo "✓ Port 7009 is listening in container"
+          else
+            echo "✗ WARNING: Port 7009 may not be listening"
+            echo "Checking network connections:"
+            docker exec application netstat -tuln 2>/dev/null || docker exec application ss -tuln 2>/dev/null || echo "Cannot check network"
+          fi
+
+      - name: Check application health
+        run: |
+          cd lab2
+          echo "Checking application health endpoint..."
+          
+          # Проверяем, что приложение отвечает
+          max_attempts=30
+          attempt=0
+          
+          while [ $attempt -lt $max_attempts ]; do
+            # Пробуем подключиться изнутри контейнера (более надежно)
+            if docker exec application curl -f http://localhost:7009/ > /dev/null 2>&1; then
+              echo "✓ Application is responding from inside container!"
+              break
+            fi
+            
+            # Также пробуем снаружи
+            if curl -f http://localhost:7009/ > /dev/null 2>&1; then
+              echo "✓ Application is responding from host!"
+              break
+            fi
+            
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts: Waiting for application..."
+            
+            # Показываем логи каждые 5 попыток
+            if [ $((attempt % 5)) -eq 0 ]; then
+              echo "Recent application logs:"
+              docker logs application --tail 20
+            fi
+            
+            sleep 2
+          done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "✗ ERROR: Application did not respond after $max_attempts attempts"
+            echo "Full application logs:"
+            docker logs application
+            echo ""
+            echo "Docker compose logs:"
+            if command -v docker-compose &> /dev/null; then
+              docker-compose logs myapp
+            else
+              docker compose logs myapp
+            fi
+            echo ""
+            echo "Container status:"
+            docker ps -a --filter "name=application"
+            exit 1
+          fi
+          
+          # Финальная проверка с выводом ответа
+          echo "Final health check:"
+          curl -v http://localhost:7009/ || docker exec application curl -v http://localhost:7009/
+
+          
       - name: Upload Bandit report
         if: always()
         uses: actions/upload-artifact@v4
