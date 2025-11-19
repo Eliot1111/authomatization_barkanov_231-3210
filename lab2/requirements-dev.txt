@@ -1,0 +1,11 @@
+# Development dependencies
+flake8==7.0.0
+flake8-docstrings==1.7.0
+pylint==3.2.3
+bandit[toml]==1.7.6
+safety==3.2.5
+mypy==1.9.0
+black==24.4.2
+isort==5.13.2
+pre-commit==3.7.0
+
