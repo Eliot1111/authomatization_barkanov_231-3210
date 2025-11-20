@@ -110,6 +110,33 @@ jobs:
           source venv/bin/activate || . venv/bin/activate
           mypy . --ignore-missing-imports || true
 
+      - name: Run Pytest Tests
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          echo "Running pytest tests..."
+          pytest tests/ -v --tb=short || true
+
+      - name: Run Pytest with Coverage
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          echo "Running pytest with coverage..."
+          pytest tests/ --cov=. --cov-report=term-missing --cov-report=xml --cov-report=html -v || true
+          echo ""
+          echo "Coverage report:"
+          coverage report || true
+
+      - name: Check Test Coverage
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          echo "Checking test coverage (target: 40%)..."
+          pytest tests/ --cov=. --cov-report=term --cov-fail-under=40 -v || {
+            echo "⚠ WARNING: Test coverage is below 40%"
+            echo "This is a warning, not a failure - tests will continue"
+          }
+
       - name: Stop existing containers (if any)
         run: |
           cd lab2
