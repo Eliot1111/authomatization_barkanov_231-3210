@@ -150,3 +150,18 @@ class EventLog(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     event = Column(Text, nullable=False)
     details = Column(Text)  # храним JSON как текст для простоты; можно поменять на JSONB через Dialect
+
+class UserActivityLog(Base):
+    """Таблица для логирования действий пользователей"""
+    __tablename__ = "user_activity_log"
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(Integer, ForeignKey("lib.users.id", ondelete="CASCADE"), nullable=False)
+    action = Column(Text, nullable=False)  
+    resource_type = Column(Text)  
+    resource_id = Column(Integer) 
+    ip_address = Column(Text)  
+    user_agent = Column(Text)  
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    additional_data = Column(Text)
+
+    user = relationship("User", backref="activity_logs")

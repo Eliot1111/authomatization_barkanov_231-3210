@@ -3,7 +3,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from models import Base, metadata, Publisher, Faculty, Branch, Book, Author, BookAuthor, \
-    Inventory, BookFaculty, Student, EventLog, User
+    Inventory, BookFaculty, Student, EventLog, User, UserActivityLog
 
 def init_db(engine, with_demo=True):
     """

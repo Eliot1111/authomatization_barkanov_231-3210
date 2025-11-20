@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 from models import (
     Base, Publisher, Author, Branch, Faculty, Student,
-    Book, BookAuthor, Inventory, BookFaculty, Borrow, EventLog, User
+    Book, BookAuthor, Inventory, BookFaculty, Borrow, EventLog, User, UserActivityLog
 )
 from db_bootstrap import init_db
 
