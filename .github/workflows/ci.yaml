@@ -284,3 +284,87 @@ jobs:
           name: bandit-security-report
           path: lab2/bandit-report.json
           if-no-files-found: ignore
+
+
+      - name: Backup current database schema
+        run: |
+          cd lab2
+          echo "=== Backing up current database schema ==="
+          
+          # Создаем директорию для бэкапов
+          SCHEMA_BACKUP_DIR="/var/backups/db_schemas"
+          sudo mkdir -p "$SCHEMA_BACKUP_DIR" || mkdir -p "$SCHEMA_BACKUP_DIR" || echo "Using current directory for backups"
+          
+          # Если не можем создать системную директорию, используем локальную
+          if [ ! -w "$SCHEMA_BACKUP_DIR" ]; then
+            SCHEMA_BACKUP_DIR="./migrations/backups"
+            mkdir -p "$SCHEMA_BACKUP_DIR"
+          fi
+          
+          export SCHEMA_BACKUP_DIR
+          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          
+          # Устанавливаем права на скрипт
+          chmod +x migrations/backup_schema.sh || true
+          
+          # Запускаем бэкап
+          if [ -f "migrations/backup_schema.sh" ]; then
+            ./migrations/backup_schema.sh || {
+              echo "WARNING: Schema backup failed, but continuing..."
+            }
+          else
+            echo "⚠ WARNING: backup_schema.sh not found, creating manual backup..."
+            # Ручной бэкап через docker exec
+            TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+            docker exec postgres pg_dump -U postgres -d postgres --schema=lib --schema-only > "migrations/backups/schema_lib_${TIMESTAMP}.sql" || echo "Manual backup failed"
+          fi
+
+      - name: Initialize Alembic
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          
+          # Проверяем наличие миграций
+          if [ ! -d "alembic/versions" ] || [ -z "$(ls -A alembic/versions/*.py 2>/dev/null)" ]; then
+            echo "⚠ WARNING: No migration files found in alembic/versions/"
+            echo "Migration files should be committed to repository"
+          else
+            echo "Migration files found:"
+            ls -la alembic/versions/*.py
+          fi
+          
+          # Проверяем текущую версию миграций
+          echo ""
+          echo "Current migration status:"
+          alembic current || echo "No migrations applied yet"
+          
+
+      - name: Apply database migrations
+        run: |
+          cd lab2
+          source venv/bin/activate || . venv/bin/activate
+          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          
+          # Показываем текущую версию
+          echo "Current migration version:"
+          alembic current || echo "No migrations applied yet"
+          
+          # Показываем доступные миграции
+          echo ""
+          echo "Available migrations:"
+          alembic history || echo "No migrations found"
+          
+          # Применяем миграции
+          echo ""
+          echo "Applying migrations to head..."
+          alembic upgrade head || {
+            echo "✗ ERROR: Failed to apply migrations"
+            echo "Checking migration status:"
+            alembic current
+            echo "Checking database connection..."
+            docker exec postgres psql -U postgres -d postgres -c "SELECT version();" || echo "Cannot connect to database"
+            exit 1
+          }
+
+
