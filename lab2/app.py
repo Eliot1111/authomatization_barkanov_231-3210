@@ -3,13 +3,15 @@ import os
 from datetime import datetime
 
 from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_login import LoginManager, login_user, logout_user, login_required
+from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 
 from models import (
     Base, Publisher, Author, Branch, Faculty, Student,
-    Book, BookAuthor, Inventory, BookFaculty, Borrow, EventLog
+    Book, BookAuthor, Inventory, BookFaculty, Borrow, EventLog, User
 )
 from db_bootstrap import init_db
 
@@ -26,6 +28,18 @@ init_db(engine, with_demo=True)
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+# Настройка Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Пожалуйста, войдите в систему для доступа к этой странице.'
+login_manager.login_message_category = 'info'
+
+@login_manager.user_loader
+def load_user(user_id):
+    with SessionLocal() as session:
+        return session.get(User, int(user_id))
 
 
 # ---------- Вспомогательные функции уровня сервиса ----------
@@ -56,6 +70,78 @@ def borrow_book(session, student_id: int, book_id: int, branch_id: int):
 
 
 # ---------------------------- Роуты ----------------------------
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        password_confirm = request.form.get("password_confirm", "")
+
+        if not username or not email or not password:
+            flash("Все поля обязательны для заполнения", "danger")
+            return render_template("register.html")
+
+        if password != password_confirm:
+            flash("Пароли не совпадают", "danger")
+            return render_template("register.html")
+
+        if len(password) < 6:
+            flash("Пароль должен содержать не менее 6 символов", "danger")
+            return render_template("register.html")
+
+        with SessionLocal() as session:
+            # Проверка на существующего пользователя
+            existing_user = session.query(User).filter(
+                (User.username == username) | (User.email == email)
+            ).first()
+            if existing_user:
+                flash("Пользователь с таким именем или email уже существует", "danger")
+                return render_template("register.html")
+
+            # Создание нового пользователя
+            password_hash = generate_password_hash(password)
+            new_user = User(
+                username=username,
+                email=email,
+                password_hash=password_hash
+            )
+            session.add(new_user)
+            session.commit()
+            flash("Регистрация успешна! Теперь вы можете войти.", "success")
+            return redirect(url_for("login"))
+
+    return render_template("register.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+
+        if not username or not password:
+            flash("Введите имя пользователя и пароль", "danger")
+            return render_template("login.html")
+
+        with SessionLocal() as session:
+            user = session.query(User).filter_by(username=username).first()
+            if user and check_password_hash(user.password_hash, password):
+                login_user(user)
+                flash(f"Добро пожаловать, {user.username}!", "success")
+                next_page = request.args.get("next")
+                return redirect(next_page or url_for("index"))
+            else:
+                flash("Неверное имя пользователя или пароль", "danger")
+
+    return render_template("login.html")
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("Вы вышли из системы", "info")
+    return redirect(url_for("index"))
 
 @app.route("/")
 def index():

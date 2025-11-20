@@ -123,6 +123,27 @@ class Borrow(Base):
     book = relationship("Book", back_populates="borrows")
     branch = relationship("Branch", back_populates="borrows")
 
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    username = Column(Text, unique=True, nullable=False)
+    email = Column(Text, unique=True, nullable=False)
+    password_hash = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    # Методы для Flask-Login
+    def is_authenticated(self):
+        return True
+
+    def is_active(self):
+        return True
+
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return str(self.id)
+
 class EventLog(Base):
     __tablename__ = "event_log"
     id = Column(BigInteger, primary_key=True)
